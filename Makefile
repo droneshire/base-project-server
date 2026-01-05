@@ -3,13 +3,27 @@ DIR := ${CURDIR}
 PY_PATH=$(DIR)
 export PYTHONPATH=$(PY_PATH)
 RUN_PY = $(PYTHON) -m
-BLACK_CMD = $(RUN_PY) black --line-length 100 .
+# Black is configured in pyproject.toml
+BLACK_CMD = $(RUN_PY) black .
 # NOTE: exclude any virtual environment subdirectories here
-PY_FIND_COMMAND = find -name '*.py' ! -path './venv/*'
+PY_FIND_COMMAND = find -name '*.py' \
+	! -path './.git/*' \
+	! -path './venv/*' \
+	! -path './venv-dev/*' \
+	! -path './.venv/*' \
+	! -path './__pycache__/*' \
+	! -path './*/__pycache__/*'
 MYPY_CONFIG=$(PY_PATH)/mypy_config.ini
 
 install:
 	pip3 install -r requirements.txt
+
+init_dev:
+	$(RUN_PY) venv venv-dev
+	./venv-dev/bin/python -m pip install --upgrade pip setuptools wheel
+
+install_dev:
+	./venv-dev/bin/python -m pip install -r requirements.txt
 
 run_isort:
 	isort $(shell $(PY_FIND_COMMAND))
@@ -35,10 +49,12 @@ autopep8:
 lint: check_format run_mypy run_pylint
 	echo "Linting..."
 
+lint_full: lint
+
 test:
-	$(RUN_PY) unittest discover -s test/ -p *_test.py -v
+	$(RUN_PY) unittest discover -s test/ -p 'test_*.py' -v
 
 server:
 	$(RUN_PY) app --port 8080 --host localhost
 
-.PHONY: install run_black run_isort format check_format run_mypy run_pylint lint test server
+.PHONY: install init_dev install_dev run_black run_isort format check_format run_mypy run_pylint lint lint_full test server
